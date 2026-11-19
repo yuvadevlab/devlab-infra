@@ -1,0 +1,77 @@
+name: "🛡️ CI Pipeline — Infrastructure Control Plane"
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  push:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-lint:
+    name: "📝 Lint PR & Branch"
+    uses: yuvadevlab/.github/.github/workflows/reusable-pr-lint.yml@main
+    if: github.event_name == 'pull_request'
+
+  validate:
+    name: "⚡ Validate Infrastructure & Catalog"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python Dependencies
+        run: |
+          pip install pyyaml
+
+      - name: Validate GitHub Actions Workflows (actionlint)
+        shell: bash
+        run: |
+          bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -ignore 'runtime ".*" is deprecated'
+
+      - name: Validate All YAML Files Syntax
+        shell: bash
+        run: |
+          python3 -c "
+          import yaml, glob, sys
+          files = set(glob.glob('**/*.yml', recursive=True) + glob.glob('**/*.yaml', recursive=True) + glob.glob('.github/**/*.yml', recursive=True))
+          errors = 0
+          for f in sorted(files):
+              try:
+                  with open(f, 'r') as fp:
+                      yaml.safe_load(fp)
+                  print(f'✓ Valid YAML: {f}')
+              except Exception as e:
+                  print(f'✗ Invalid YAML in {f}: {e}', file=sys.stderr)
+                  errors += 1
+          if errors > 0:
+              sys.exit(1)
+          print(f'\nAll {len(files)} YAML files successfully validated.')
+          "
+
+      - name: Validate Shell Script Syntax
+        run: |
+          bash -n gcp/scripts/provision-secrets.sh
+          echo "✓ Shell script syntax verified."
+
+      - name: Run Fleet & Port Integrity Suite
+        run: |
+          python scripts/validate.py

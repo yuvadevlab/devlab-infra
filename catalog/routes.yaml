@@ -1,0 +1,43 @@
+# ==============================================================================
+# Ingress & Routing Topology
+# Single source of truth for public domains, Cloud Run ingress, and health checks.
+# ==============================================================================
+
+version: "1.0"
+organization: "yuvadevlab"
+domain_root: "devlab.com"
+
+routing:
+  # ─── Production Ingress ─────────────────────────────────────────────────────
+  production:
+    frontend:
+      devlab-portal: "https://devlab-portal.vercel.app"
+      fin-ai: "https://fin-ai.vercel.app"
+      orchestr-ai: "https://orchestr-ai.vercel.app"
+      devlab-logs: "https://devlab-logs.vercel.app"
+    apis:
+      devlab-portal-api:
+        cloud_run_url: "https://devlab-portal-api-293436328335.asia-southeast1.run.app"
+        custom_domain: "https://api.devlab.com/portal"
+        health_check: "/api/health"
+      finai-api:
+        cloud_run_url: "https://finai-api-293436328335.asia-southeast1.run.app"
+        custom_domain: "https://api.devlab.com/fin"
+        health_check: "/api/v1/health"
+      orchestr-ai-api:
+        cloud_run_url: "https://orchestr-ai-api-293436328335.asia-southeast1.run.app"
+        custom_domain: "https://api.devlab.com/orchestr"
+        health_check: "/api/v1/health"
+
+  # ─── Development Ingress ────────────────────────────────────────────────────
+  development:
+    frontend:
+      devlab-portal: "https://devlab-portal-dev.vercel.app"
+      fin-ai: "https://fin-ai-dev.vercel.app"
+    apis:
+      devlab-portal-api:
+        cloud_run_url: "https://devlab-portal-api-dev-293436328335.asia-southeast1.run.app"
+        health_check: "/api/health"
+      finai-api:
+        cloud_run_url: "https://finai-api-dev-293436328335.asia-southeast1.run.app"
+        health_check: "/api/v1/health"

@@ -1,0 +1,282 @@
+# ==============================================================================
+# Master Service Registry & Fleet Catalog
+# Single source of truth for all deployable services, ports, runtimes,
+# compute profiles, and compute archetypes across the ecosystem.
+# ==============================================================================
+
+version: "1.0"
+organization: "yuvadevlab"
+default_region: "asia-southeast1"
+default_registry: "asia-southeast1-docker.pkg.dev/project-cbe181a6-46e7-4c7c-8e8/cloud-run-source-deploy"
+
+# ─── Compute Archetypes ───────────────────────────────────────────────────────
+# http-api:         Stateless HTTP server; auto-scales 0 <-> N; concurrency 80.
+# websocket-server: Long-lived SSE/WS; session-affinity enabled; no CPU throttling.
+# background-job:   Cloud Run Job; executes batch/cron to completion; $0 when idle.
+# web-frontend:     Next.js / Vite frontend application (deployed on Vercel).
+
+services:
+  # ─── Control Plane & Core Platform ──────────────────────────────────────────
+  - id: "devlab-portal-api"
+    app: "devlab-portal"
+    archetype: "http-api"
+    runtime: "node-24"
+    port: 4000
+    dockerfile: "Dockerfile.api"
+    description: "Central authentication, RBAC, SSO, and ecosystem control plane API"
+    compute:
+      dev:
+        cpu: 1
+        memory: "512Mi"
+        min_instances: 0
+        max_instances: 2
+        concurrency: 80
+      prod:
+        cpu: 1
+        memory: "512Mi"
+        min_instances: 1
+        max_instances: 5
+        concurrency: 80
+        cpu_boost: true
+    secrets:
+      - env_var: "DATABASE_URL"
+        secret_name: "devlab-portal-db-url"
+      - env_var: "SESSION_SECRET"
+        secret_name: "devlab-portal-session-secret"
+
+  - id: "devlab-portal-web"
+    app: "devlab-portal"
+    archetype: "web-frontend"
+    port: 3000
+    provider: "vercel"
+    description: "Master navigation portal and user dashboard frontend"
+
+  # ─── FinAI Platform ─────────────────────────────────────────────────────────
+  - id: "finai-api"
+    app: "fin-ai"
+    archetype: "http-api"
+    runtime: "node-24"
+    port: 4001
+    dockerfile: "Dockerfile.api"
+    description: "Autonomous personal finance, transaction intelligence, and AI advisory API"
+    compute:
+      dev:
+        cpu: 1
+        memory: "512Mi"
+        min_instances: 0
+        max_instances: 2
+        concurrency: 80
+      prod:
+        cpu: 1
+        memory: "512Mi"
+        min_instances: 1
+        max_instances: 5
+        concurrency: 80
+        cpu_boost: true
+    secrets:
+      - env_var: "DATABASE_URL"
+        secret_name: "finai-db-url"
+      - env_var: "GOOGLE_AI_STUDIO_API_KEY"
+        secret_name: "gemini-api-key"
+
+  - id: "finai-web"
+    app: "fin-ai"
+    archetype: "web-frontend"
+    port: 3001
+    provider: "vercel"
+    description: "Personal finance web application frontend"
+
+  # ─── OrchestrAI Platform ────────────────────────────────────────────────────
+  - id: "orchestr-ai-api"
+    app: "orchestr-ai"
+    archetype: "http-api"
+    runtime: "node-22"
+    port: 4002
+    dockerfile: "Dockerfile.api"
+    description: "Distributed multi-agent orchestration, swarm coordinator, and DAG execution API"
+    compute:
+      dev:
+        cpu: 1
+        memory: "1Gi"
+        min_instances: 0
+        max_instances: 3
+        concurrency: 80
+      prod:
+        cpu: 2
+        memory: "2Gi"
+        min_instances: 1
+        max_instances: 10
+        concurrency: 80
+        cpu_boost: true
+    secrets:
+      - env_var: "DATABASE_URL"
+        secret_name: "orchestrai-db-url"
+      - env_var: "REDIS_URL"
+        secret_name: "orchestrai-redis-url"
+
+  - id: "orchestr-ai-intelligence"
+    app: "orchestr-ai"
+    archetype: "websocket-server"
+    runtime: "python-3.12"
+    port: 8082
+    dockerfile: "apps/intelligence/Dockerfile"
+    description: "Realtime streaming agent execution, reasoning engine, and tool sandbox"
+    compute:
+      dev:
+        cpu: 1
+        memory: "1Gi"
+        min_instances: 0
+        max_instances: 2
+        cpu_throttling: false
+        session_affinity: true
+      prod:
+        cpu: 2
+        memory: "2Gi"
+        min_instances: 1
+        max_instances: 5
+        cpu_throttling: false
+        session_affinity: true
+        cpu_boost: true
+
+  - id: "orchestr-ai-crawler"
+    app: "orchestr-ai"
+    archetype: "background-job"
+    runtime: "python-3.12"
+    port: 8083
+    dockerfile: "apps/crawler/Dockerfile"
+    description: "Headless documentation indexing and agent RAG ingestion worker"
+    compute:
+      dev:
+        cpu: 1
+        memory: "1Gi"
+      prod:
+        cpu: 2
+        memory: "2Gi"
+
+  # ─── DevLab Logs Platform ───────────────────────────────────────────────────
+  - id: "devlab-logs-api"
+    app: "devlab-logs"
+    archetype: "http-api"
+    runtime: "node-22"
+    port: 4003
+    dockerfile: "Dockerfile.api"
+    description: "Telemetry ingestion, distributed tracing, and audit log aggregation API"
+    compute:
+      dev:
+        cpu: 1
+        memory: "512Mi"
+        min_instances: 0
+        max_instances: 2
+      prod:
+        cpu: 1
+        memory: "1Gi"
+        min_instances: 1
+        max_instances: 5
+        cpu_boost: true
+
+  - id: "devlab-logs-collector"
+    app: "devlab-logs"
+    archetype: "http-api"
+    runtime: "go-1.23"
+    port: 9003
+    dockerfile: "collector/Dockerfile"
+    description: "High-throughput native Go log collector and OpenTelemetry receiver"
+
+  # ─── VitalAI Platform (On-Hold) ─────────────────────────────────────────────
+  - id: "vital-ai-api"
+    app: "vital-ai"
+    archetype: "http-api"
+    runtime: "python-3.12"
+    port: 4004
+    dockerfile: "apps/api/Dockerfile"
+    description: "Biometric analysis, health telemetry, and personalized workout planning API"
+    compute:
+      dev:
+        cpu: 1
+        memory: "512Mi"
+        min_instances: 0
+        max_instances: 2
+      prod:
+        cpu: 1
+        memory: "1Gi"
+        min_instances: 1
+        max_instances: 3
+
+  # ─── DevLab Guard Platform ──────────────────────────────────────────────────
+  - id: "devlab-guard-service"
+    app: "devlab-guard"
+    archetype: "http-api"
+    runtime: "python-3.12"
+    port: 8085
+    dockerfile: "Dockerfile"
+    description: "Automated vulnerability scanner, SAIF policy enforcer, and audit daemon"
+
+  # ─── IncidentAI Platform ────────────────────────────────────────────────────
+  - id: "incident-ai-api"
+    app: "incident-ai"
+    archetype: "http-api"
+    runtime: "node-22"
+    port: 4006
+    dockerfile: "Dockerfile.api"
+    description: "Site reliability engineering drill simulator and automated post-mortem generator"
+
+  # ─── QuantAI Platform (Upcoming) ────────────────────────────────────────────
+  - id: "quant-ai-api"
+    app: "quant-ai"
+    archetype: "http-api"
+    runtime: "node-22"
+    port: 4007
+    dockerfile: "Dockerfile.api"
+    description: "Algorithmic trading dashboard and portfolio risk API"
+
+  - id: "quant-ai-engine"
+    app: "quant-ai"
+    archetype: "background-job"
+    runtime: "python-3.12"
+    port: 8087
+    dockerfile: "apps/engine/Dockerfile"
+    description: "High-frequency backtesting engine and quantitative signal pipeline"
+    compute:
+      prod:
+        cpu: 2
+        memory: "4Gi"
+
+  # ─── KnowledgeAI Platform (Pipeline) ────────────────────────────────────────
+  - id: "knowledge-ai-api"
+    app: "knowledg-ai"
+    archetype: "http-api"
+    runtime: "node-24"
+    port: 4008
+    dockerfile: "Dockerfile.api"
+    description: "Autonomous enterprise knowledge graph and multi-modal semantic search API"
+
+  - id: "knowledge-ai-realtime"
+    app: "knowledg-ai"
+    archetype: "websocket-server"
+    runtime: "node-24"
+    port: 4009
+    dockerfile: "apps/socket/Dockerfile"
+    description: "Collaborative realtime document sync, cursor broadcast, and live query updates"
+    compute:
+      prod:
+        cpu: 1
+        memory: "1Gi"
+        session_affinity: true
+        cpu_throttling: false
+
+  - id: "knowledge-ai-crawler"
+    app: "knowledg-ai"
+    archetype: "background-job"
+    runtime: "python-3.12"
+    port: 8088
+    dockerfile: "apps/crawler/Dockerfile"
+    description: "Continuous enterprise web & documentation crawler with embedding generator"
+    schedule: "0 */3 * * *"
+
+  - id: "knowledge-ai-scraper"
+    app: "knowledg-ai"
+    archetype: "background-job"
+    runtime: "python-3.12"
+    port: 8089
+    dockerfile: "apps/scraper/Dockerfile"
+    description: "Dynamic DOM renderer and JS-driven web extractor"
