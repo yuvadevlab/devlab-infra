@@ -1,5 +1,7 @@
 # Infrastructure Control Plane (`devlab-infra`)
 
+[![CI](https://github.com/yuvadevlab/devlab-infra/actions/workflows/ci.yml/badge.svg)](https://github.com/yuvadevlab/devlab-infra/actions/workflows/ci.yml)
+
 Central infrastructure repository, service fleet catalog, and cloud topology authority for the **Yuva DevLab Ecosystem**.
 
 ---
@@ -35,8 +37,11 @@ It codifies:
 
 ```
 devlab-infra/
+├── .github/
+│   └── workflows/
+│       └── ci.yml             # Actionlint, YAML parser & Python integrity CI
 ├── catalog/
-│   ├── services.yaml          # Master Service Registry (all 20+ services, compute limits, archetypes)
+│   ├── services.yaml          # Master Service Registry (all 18+ services, compute limits, archetypes)
 │   └── routes.yaml            # Public domains & ingress mapping
 ├── gcp/
 │   ├── secret-manager/
@@ -47,6 +52,9 @@ devlab-infra/
 │   ├── ARCHITECTURE.md        # Architectural guide for Cloud Run & scaling
 │   ├── PORT_ALLOCATION.md     # Authoritative port registry
 │   └── RUNBOOK.md             # Rollback & emergency operations runbook
+├── scripts/
+│   └── validate.py            # Local & CI fleet integrity validator
+├── .gitignore
 └── README.md
 ```
 
@@ -69,3 +77,13 @@ Every service in the fleet is categorized into one of three compute patterns in 
 - **Instant Rollback**: See [docs/RUNBOOK.md](file:///Users/yuvarajpattabi/Yuva/yuva-devlab/repos/devlab-infra/docs/RUNBOOK.md) for 2-second Cloud Run traffic shifting.
 - **Port Allocation**: Consult [docs/PORT_ALLOCATION.md](file:///Users/yuvarajpattabi/Yuva/yuva-devlab/repos/devlab-infra/docs/PORT_ALLOCATION.md) before spinning up new services.
 - **Adding a Service**: Follow the onboarding checklist in [docs/RUNBOOK.md](file:///Users/yuvarajpattabi/Yuva/yuva-devlab/repos/devlab-infra/docs/RUNBOOK.md).
+
+---
+
+## 6. Local Validation
+
+To validate the catalog before opening a pull request:
+
+```bash
+python3 scripts/validate.py
+```
